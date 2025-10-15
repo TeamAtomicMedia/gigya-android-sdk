@@ -1,0 +1,31 @@
+name: Sync with Base
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+jobs:
+  sync-with-base:
+    name: Sync with Base
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if fork is out-of-date
+        run: |
+          commits_ahead=$(git rev-list --left-right --count origin/main...upstream/main | awk '{print $2}')
+          if [[ "$commits_ahead" == "0" ]]; then
+            echo "Fork is already in sync with base"
+            exit 0
+          fi
+
+          echo "should_create_sync_branch=true" >> "$GITHUB_ENV"
+
+      # TODO
+      - name: Create sync-with-base branch
+
+      # TODO
+      - name: Sync sync-with-base branch
+
+      # TODO
+      - name: Create Sync PR
