@@ -1,0 +1,67 @@
+name: Sync with Base
+on:
+  schedule:
+     - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+jobs:
+  sync-with-base:
+    name: Sync with Base
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch base
+        run: |
+          git remote add base https://github.com/SAP/gigya-android-sdk.git
+          git fetch base main
+
+      - name: Check if fork is out-of-date
+        run: |
+          commits_ahead=$(git rev-list --left-right --count origin/main...base/main | awk '{print $2}')
+          if [[ "$commits_ahead" == "0" ]]; then
+            echo "Fork is already in 'sync with base'"
+            exit 0
+          fi
+
+          echo "Fork is behind the base repo"
+          echo "should_sync_with_base=true" >> "$GITHUB_ENV"
+
+      - name: Create sync-with-base branch if missing
+        if: env.should_sync_with_base == 'true'
+        run: |
+          # git ls-remote exits 0 if sync-with-base already exists, without outputting to console
+          if git ls-remote --heads --exit-code origin sync-with-base > /dev/null; then
+            echo "'sync-with-base' branch already exists"
+          else 
+            git branch sync-with-base base/main
+            git push -u origin sync-with-base --verbose
+            echo "Created branch 'sync-with-base'"
+          fi
+
+      - name: Sync sync-with-base branch
+        if: env.should_sync_with_base == 'true'
+        run: |
+          git fetch origin sync-with-base
+          sync_commits_ahead=$(git rev-list --left-right --count origin/sync-with-base...base/main | awk '{print $2}')
+          if [[ "$sync_commits_ahead" -ne 0 ]]; then
+              git fetch base main:sync-with-base
+              git push origin sync-with-base
+              echo "'sync-with-base' updated with base repo"
+          else 
+              echo "'sync-with-base' already up-to-date"
+          fi
+
+      - name: Create Sync PR
+        if: env.should_sync_with_base == 'true'
+        run: |
+          # gh pr list returns empty string if no PR exists
+          pr_list_message=$(gh pr list --head sync-with-base --base main)
+          if [[ -z "$pr_list_message" ]]; then
+              gh pr create --head sync-with-base --base main --title "Sync Fork with Base Repository" --body ""
+              echo "Created new sync PR"
+          else 
+              echo "PR already exists"
+          fi
