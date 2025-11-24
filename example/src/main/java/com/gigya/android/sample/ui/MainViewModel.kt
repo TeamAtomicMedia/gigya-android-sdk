@@ -77,6 +77,31 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    fun customIdLogin(
+        identifier: String,
+        identifierType: String,
+        password: String,
+        error: (GigyaError?) -> Unit,
+        onLogin: () -> Unit
+    ) {
+        viewModelScope.launch {
+            gigyaRepository.customIdLogin(
+                identifier,
+                identifierType,
+                password
+            ).collect { result ->
+                if (result.isError()) {
+                    error(result.error)
+                    this.coroutineContext.job.cancel()
+                } else {
+                    account.value = result.account
+                    onLogin()
+                    this.coroutineContext.job.cancel()
+                }
+            }
+        }
+    }
+
     // Register using email & password pair.
     fun credentialRegister(
         email: String, password: String,

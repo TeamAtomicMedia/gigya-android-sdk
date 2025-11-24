@@ -36,6 +36,7 @@ import com.google.gson.Gson
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import org.intellij.lang.annotations.Identifier
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -232,6 +233,21 @@ class GigyaRepository {
     fun loginWith(map: MutableMap<String, Any>): Flow<GigyaRepoResponse> {
         return loginFlow { callback ->
             gigyaInstance.login(map, callback)
+        }
+    }
+
+    fun customIdLogin(
+        identifier: String,
+        identifierType: String,
+        password: String
+    ): Flow<GigyaRepoResponse> {
+        return loginFlow { callback ->
+            gigyaInstance.login(
+                identifier,
+                identifierType, password,
+                mutableMapOf<String, Any>(),
+                callback
+            )
         }
     }
 
@@ -715,28 +731,6 @@ class GigyaRepository {
             })
         }
 
-    }
-
-    suspend fun setAccountInfo(account: MyAccount): GigyaRepoResponse {
-        val res = GigyaRepoResponse()
-        return suspendCoroutine { continuation ->
-            gigyaInstance.setAccount(account, object : GigyaCallback<MyAccount>() {
-                override fun onSuccess(obj: MyAccount?) {
-                    obj?.let {
-                        res.account = it
-                        continuation.resume(res)
-                    }
-                }
-
-                override fun onError(error: GigyaError?) {
-                    error?.let {
-                        res.error = error
-                        continuation.resume(res)
-                    }
-                }
-
-            })
-        }
     }
 
     @UiThread
